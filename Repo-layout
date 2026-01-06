@@ -1,0 +1,30 @@
+mymodhub-procedural-loader/
+├─ CMakeLists.txt
+├─ CMakePresets.json
+├─ vcpkg.json
+├─ .gitignore
+├─ README.md
+├─ LICENSE
+├─ cmake/
+│  └─ (optional helper cmake later)
+├─ src/
+│  ├─ main.cpp
+│  ├─ Plugin.cpp
+│  ├─ Plugin.h
+│  ├─ Log.cpp
+│  ├─ Log.h
+│  ├─ Version.h
+│  ├─ mmh/
+│  │  ├─ PackPaths.h
+│  │  ├─ PackPaths.cpp
+│  │  ├─ PackLoader.h
+│  │  ├─ PackLoader.cpp
+│  │  ├─ Validate.h
+│  │  ├─ Validate.cpp
+│  │  ├─ Apply.h
+│  │  └─ Apply.cpp
+│  └─ racemenu/
+│     ├─ RaceMenuBridge.h
+│     └─ RaceMenuBridge.cpp
+└─ tests/
+   └─ (later)
