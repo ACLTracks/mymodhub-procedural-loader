@@ -1,13 +1,34 @@
+#include <SKSE/SKSE.h>
+#include <spdlog/spdlog.h>
+
+#include "Log.h"
 #include "Plugin.h"
 
-// NOTE: This is NOT a proper SKSE entrypoint yet.
-// It just proves the project builds and runs initialization in a controlled test harness.
-// Next step is wiring CommonLibSSE NG and SKSEPlugin_Load.
+using namespace std::literals;
 
-BOOL APIENTRY DllMain(HMODULE, DWORD reason, LPVOID)
+extern "C"
 {
-	if (reason == DLL_PROCESS_ATTACH) {
-		mmh::Plugin::Init();
-	}
-	return TRUE;
+    __declspec(dllexport) constinit SKSE::PluginVersionData SKSEPlugin_Version =
+    {
+        .dataVersion = SKSE::PluginVersionData::kVersion,
+        .pluginVersion = 1,
+        .pluginName = "MyModHub Procedural Loader",
+        .author = "ACLTracks",
+        .supportEmail = "",
+        .version = SKSE::PluginVersionData::VersionIndependence::AddressLibrary,
+        .usesAddressLibrary = true,
+        .hasNoStructUse = false
+    };
+}
+
+SKSEPluginLoad(const SKSE::LoadInterface* skse)
+{
+    SKSE::Init(skse);
+
+    mmh::InitLogging();
+    spdlog::info("MyModHub Procedural Loader loaded");
+
+    mmh::Plugin::Init();
+
+    return true;
 }
