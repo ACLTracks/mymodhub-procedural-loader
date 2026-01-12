@@ -1,22 +1,23 @@
 #include "Plugin.h"
 #include "Log.h"
 #include "mmh/PackLoader.h"
+#include <atomic>
 
 namespace mmh
 {
 	namespace
 	{
-		bool g_initialized = false;
+		std::atomic_bool g_initialized{false};
 	}
 
 	void Plugin::Init()
 	{
-		if (g_initialized)
+		bool expected = false;
+		if (!g_initialized.compare_exchange_strong(expected, true, std::memory_order_acq_rel))
 		{
 			return;
 		}
 
-		g_initialized = true;
 		InitLogging();
 		Info("Plugin::Init begin");
 
@@ -30,7 +31,8 @@ namespace mmh
 
 	void Plugin::Shutdown()
 	{
-		if (!g_initialized)
+		bool expected = true;
+		if (!g_initialized.compare_exchange_strong(expected, false, std::memory_order_acq_rel))
 		{
 			return;
 		}
@@ -39,7 +41,6 @@ namespace mmh
 
 		// TODO: real cleanup later (free resources, close handles, etc.)
 
-		g_initialized = false;
 		Info("Plugin::Shutdown end");
 	}
 }

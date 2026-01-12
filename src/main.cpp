@@ -28,6 +28,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     return TRUE;
 }
 
+// Host should call mmh_Start exactly once; guard exists for defense-in-depth.
 extern "C" __declspec(dllexport) void mmh_Start()
 {
     mmh::InitLogging();
