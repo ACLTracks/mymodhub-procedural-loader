@@ -1,34 +1,39 @@
-#include <SKSE/SKSE.h>
-#include <spdlog/spdlog.h>
+// src/main.cpp
+#include <Windows.h>
 
 #include "Log.h"
 #include "Plugin.h"
 
-using namespace std::literals;
-
-extern "C"
+// Temporary DLL entrypoint while CommonLibSSE-NG / SKSE integration is not wired up yet.
+// Once SKSE is added, replace this with SKSEPlugin_Load / SKSEPlugin_Query patterns.
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-    __declspec(dllexport) constinit SKSE::PluginVersionData SKSEPlugin_Version =
+    (void)hModule;
+    (void)lpReserved;
+
+    switch (ul_reason_for_call)
     {
-        .dataVersion = SKSE::PluginVersionData::kVersion,
-        .pluginVersion = 1,
-        .pluginName = "MyModHub Procedural Loader",
-        .author = "ACLTracks",
-        .supportEmail = "",
-        .version = SKSE::PluginVersionData::VersionIndependence::AddressLibrary,
-        .usesAddressLibrary = true,
-        .hasNoStructUse = false
-    };
-}
+        case DLL_PROCESS_ATTACH:
+        {
+            // If you don’t want thread attach/detach spam, keep this.
+            DisableThreadLibraryCalls(hModule);
 
-SKSEPluginLoad(const SKSE::LoadInterface* skse)
-{
-    SKSE::Init(skse);
+            mmh::InitLogging();
+            mmh::Plugin::Init();
+            break;
+        }
 
-    mmh::InitLogging();
-    spdlog::info("MyModHub Procedural Loader loaded");
+        case DLL_PROCESS_DETACH:
+        {
+            mmh::Plugin::Shutdown();
+            break;
+        }
 
-    mmh::Plugin::Init();
+        case DLL_THREAD_ATTACH:
+        case DLL_THREAD_DETACH:
+        default:
+            break;
+    }
 
-    return true;
+    return TRUE;
 }
