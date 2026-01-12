@@ -3,8 +3,8 @@
 #define NOMINMAX
 #include <windows.h>
 
-#include "Log.h"
 #include "Plugin.h"
+#include "Log.h"
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {

@@ -41,6 +41,7 @@ namespace mmh
 
 		// TODO: real cleanup later (free resources, close handles, etc.)
 
+		Info("Plugin::Shutdown begin");
 		Info("Plugin::Shutdown end");
 	}
 }
