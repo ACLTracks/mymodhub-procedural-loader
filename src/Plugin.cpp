@@ -35,8 +35,11 @@ namespace mmh
 			return;
 		}
 
-		g_initialized = false;
 		Info("Plugin::Shutdown begin");
+
+		// TODO: real cleanup later (free resources, close handles, etc.)
+
+		g_initialized = false;
 		Info("Plugin::Shutdown end");
 	}
 }
