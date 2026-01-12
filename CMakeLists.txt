@@ -8,7 +8,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(PLUGIN_NAME "mymodhub-procedural-loader")
 
 # Dependencies
-find_package(nlohmann_json CONFIG REQUIRED)
+set(NLOHMANN_JSON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann_json")
+if (EXISTS "${NLOHMANN_JSON_SOURCE_DIR}/CMakeLists.txt")
+  add_subdirectory("${NLOHMANN_JSON_SOURCE_DIR}")
+else()
+  include(FetchContent)
+  FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.3
+  )
+  set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(nlohmann_json)
+endif()
 
 # CommonLibSSE NG (planned as submodule)
 # After adding the submodule, this should work:

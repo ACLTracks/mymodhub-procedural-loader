@@ -4,8 +4,19 @@
 
 namespace mmh
 {
+	namespace
+	{
+		bool g_initialized = false;
+	}
+
 	void Plugin::Init()
 	{
+		if (g_initialized)
+		{
+			return;
+		}
+
+		g_initialized = true;
 		InitLogging();
 		Info("Plugin::Init begin");
 
@@ -15,5 +26,17 @@ namespace mmh
 		     " entries=" + std::to_string(result.entriesFound));
 
 		Info("Plugin::Init end");
+	}
+
+	void Plugin::Shutdown()
+	{
+		if (!g_initialized)
+		{
+			return;
+		}
+
+		g_initialized = false;
+		Info("Plugin::Shutdown begin");
+		Info("Plugin::Shutdown end");
 	}
 }

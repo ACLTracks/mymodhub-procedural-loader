@@ -1,14 +1,13 @@
 // src/main.cpp
-#include <Windows.h>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
 
 #include "Log.h"
 #include "Plugin.h"
 
-// Temporary DLL entrypoint while CommonLibSSE-NG / SKSE integration is not wired up yet.
-// Once SKSE is added, replace this with SKSEPlugin_Load / SKSEPlugin_Query patterns.
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-    (void)hModule;
     (void)lpReserved;
 
     switch (ul_reason_for_call)
@@ -17,15 +16,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         {
             // If you don’t want thread attach/detach spam, keep this.
             DisableThreadLibraryCalls(hModule);
-
-            mmh::InitLogging();
-            mmh::Plugin::Init();
-            break;
-        }
-
-        case DLL_PROCESS_DETACH:
-        {
-            mmh::Plugin::Shutdown();
             break;
         }
 
@@ -36,4 +26,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     }
 
     return TRUE;
+}
+
+extern "C" __declspec(dllexport) void mmh_Start()
+{
+    mmh::InitLogging();
+    mmh::Plugin::Init();
 }
