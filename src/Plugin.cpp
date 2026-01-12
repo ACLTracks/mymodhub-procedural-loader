@@ -16,4 +16,10 @@ namespace mmh
 
 		Info("Plugin::Init end");
 	}
+
+	void Plugin::Shutdown()
+	{
+		Info("Plugin::Shutdown begin");
+		Info("Plugin::Shutdown end");
+	}
 }

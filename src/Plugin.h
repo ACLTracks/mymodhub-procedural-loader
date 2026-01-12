@@ -6,5 +6,6 @@ namespace mmh
 	{
 	public:
 		static void Init();
+		static void Shutdown();
 	};
 }

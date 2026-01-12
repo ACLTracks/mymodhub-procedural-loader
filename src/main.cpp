@@ -1,8 +1,10 @@
 // src/main.cpp
-#include <Windows.h>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
 
-#include "Log.h"
 #include "Plugin.h"
+#include "Log.h"
 
 // Temporary DLL entrypoint while CommonLibSSE-NG / SKSE integration is not wired up yet.
 // Once SKSE is added, replace this with SKSEPlugin_Load / SKSEPlugin_Query patterns.
