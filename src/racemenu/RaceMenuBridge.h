@@ -1,10 +1,9 @@
-#include "RaceMenuBridge.h"
+#pragma once
 
 namespace mmh
 {
-	bool RaceMenuBridge::IsAvailable()
-	{
-		// TODO: Detect RaceMenu at runtime via SKSE messaging / module check
-		return false;
-	}
+    struct RaceMenuBridge
+    {
+        static bool IsAvailable();
+    };
 }
