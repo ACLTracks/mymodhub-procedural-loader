@@ -2,9 +2,9 @@
 
 namespace mmh
 {
-	bool RaceMenuBridge::IsAvailable()
-	{
-		// TODO: Detect RaceMenu at runtime via SKSE messaging / module check
-		return false;
-	}
+    bool RaceMenuBridge::IsAvailable()
+    {
+        // TODO: Detect RaceMenu later
+        return false;
+    }
 }
