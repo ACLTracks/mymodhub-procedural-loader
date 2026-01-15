@@ -8,11 +8,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Output name
 set(PLUGIN_NAME "mymodhub-procedural-loader")
 
-# Dependencies: prefer local external/nlohmann_json if present, else FetchContent fallback
-set(NLOHMANN_JSON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann_json")
-
 # Disable json tests globally (covers both add_subdirectory and FetchContent cases)
 set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
+
+# CommonLibSSE-NG (as submodule)
+# Expected path: extern/CommonLibSSE-NG
+add_subdirectory(extern/CommonLibSSE-NG)
+
+# nlohmann_json: prefer local external/nlohmann_json if present, else FetchContent fallback
+set(NLOHMANN_JSON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann_json")
 
 if (EXISTS "${NLOHMANN_JSON_SOURCE_DIR}/CMakeLists.txt")
   add_subdirectory("${NLOHMANN_JSON_SOURCE_DIR}")
@@ -25,10 +29,6 @@ else()
   )
   FetchContent_MakeAvailable(nlohmann_json)
 endif()
-
-# CommonLibSSE NG (planned as submodule)
-# add_subdirectory(extern/CommonLibSSE)
-# and link against CommonLibSSE::CommonLibSSE
 
 add_library(${PLUGIN_NAME} SHARED
   src/main.cpp
@@ -58,11 +58,9 @@ target_include_directories(${PLUGIN_NAME} PRIVATE
 )
 
 target_link_libraries(${PLUGIN_NAME} PRIVATE
+  CommonLibSSE::CommonLibSSE
   nlohmann_json::nlohmann_json
 )
-
-# When CommonLibSSE NG is added:
-# target_link_libraries(${PLUGIN_NAME} PRIVATE CommonLibSSE::CommonLibSSE)
 
 # Windows niceties
 if (MSVC)
