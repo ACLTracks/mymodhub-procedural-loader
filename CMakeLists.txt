@@ -14,8 +14,19 @@ set(PLUGIN_NAME "mymodhub-procedural-loader")
 # Disable json tests globally
 set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
 
-# CommonLibSSE-NG (AE runtime)
-add_subdirectory(extern/CommonLibSSE-NG)
+# CommonLibSSE-NG (AE runtime) - prefer submodule, fallback to FetchContent
+set(COMMONLIBSSE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibSSE-NG")
+if (EXISTS "${COMMONLIBSSE_SOURCE_DIR}/CMakeLists.txt")
+  add_subdirectory("${COMMONLIBSSE_SOURCE_DIR}")
+else()
+  include(FetchContent)
+  FetchContent_Declare(
+    CommonLibSSE_NG
+    GIT_REPOSITORY https://github.com/CharmedBaryon/CommonLibSSE-NG.git
+    GIT_TAG main
+  )
+  FetchContent_MakeAvailable(CommonLibSSE_NG)
+endif()
 
 # nlohmann_json: local submodule preferred, FetchContent fallback
 set(NLOHMANN_JSON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann_json")
