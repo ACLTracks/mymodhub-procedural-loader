@@ -6,6 +6,11 @@
 #include "Plugin.h"
 #include "Log.h"
 
+#include <SKSE/SKSE.h>
+
+using namespace std::literals;
+
+// Keep DllMain trivial to obey loader-lock rules.
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     (void)lpReserved;
@@ -14,13 +19,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     {
         case DLL_PROCESS_ATTACH:
         {
-            // If you don’t want thread attach/detach spam, keep this.
             DisableThreadLibraryCalls(hModule);
             break;
         }
 
         case DLL_THREAD_ATTACH:
         case DLL_THREAD_DETACH:
+        case DLL_PROCESS_DETACH:
         default:
             break;
     }
@@ -28,9 +33,28 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     return TRUE;
 }
 
-// Host should call mmh_Start exactly once; guard exists for defense-in-depth.
-extern "C" __declspec(dllexport) void mmh_Start()
+extern "C"
 {
-    mmh::InitLogging();
-    mmh::Plugin::Init();
+    // CommonLibSSE-NG / SKSE plugin version data (AE safe).
+    __declspec(dllexport) constinit auto SKSEPlugin_Version =
+        []() {
+            SKSE::PluginVersionData v{};
+            v.PluginName("mymodhub-procedural-loader"sv);
+            v.AuthorName("ACLTracks"sv);
+            v.PluginVersion(0, 1, 0, 0);
+            v.UsesAddressLibrary(true);
+            v.CompatibleVersions({ SKSE::RUNTIME_LATEST });
+            return v;
+        }();
+
+    // SKSE calls this outside loader lock. Put real init here.
+    __declspec(dllexport) bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* skse)
+    {
+        SKSE::Init(skse);
+
+        mmh::InitLogging();
+        mmh::Plugin::Init();
+
+        return true;
+    }
 }
