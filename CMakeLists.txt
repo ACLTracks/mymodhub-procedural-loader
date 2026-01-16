@@ -16,11 +16,11 @@ include(FetchContent)
 # nlohmann_json: disable tests globally (covers both add_subdirectory and FetchContent)
 set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
 
-# Optional: turn off tests for deps that honor BUILD_TESTS
+# CommonLibSSE-NG respects this for its own tests in many setups
 set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
 # ----------------------------
-# fmt (must be discoverable as a package for spdlogConfig -> find_dependency(fmt))
+# fmt (target-only is fine)
 # ----------------------------
 FetchContent_Declare(
   fmt
@@ -29,14 +29,10 @@ FetchContent_Declare(
 )
 set(FMT_TEST OFF CACHE BOOL "" FORCE)
 set(FMT_DOC OFF CACHE BOOL "" FORCE)
-set(FMT_INSTALL ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(fmt)
 
-# Make fmt discoverable for find_package(fmt CONFIG)
-list(APPEND CMAKE_PREFIX_PATH "${fmt_BINARY_DIR}")
-
 # ----------------------------
-# spdlog (CommonLibSSE-NG does find_package(spdlog CONFIG))
+# spdlog (target-only, no package install needed)
 # ----------------------------
 FetchContent_Declare(
   spdlog
@@ -49,15 +45,43 @@ set(SPDLOG_FMT_EXTERNAL ON CACHE BOOL "" FORCE)
 
 # Keep spdlog lean
 set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-set(SPDLOG_INSTALL ON CACHE BOOL "" FORCE)
 set(SPDLOG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(SPDLOG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SPDLOG_BUILD_BENCH OFF CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(spdlog)
 
-# Make spdlog discoverable for find_package(spdlog CONFIG)
-list(APPEND CMAKE_PREFIX_PATH "${spdlog_BINARY_DIR}")
+# ----------------------------
+# Provide a local spdlog "package config" for CommonLibSSE-NG
+# (avoids the broken spdlog build-tree export targets include issue)
+# ----------------------------
+set(_LOCAL_PKG_DIR "${CMAKE_BINARY_DIR}/_local_pkgs/spdlog")
+file(MAKE_DIRECTORY "${_LOCAL_PKG_DIR}")
+
+file(WRITE "${_LOCAL_PKG_DIR}/spdlogConfig.cmake" [=[
+# Minimal config to satisfy find_package(spdlog CONFIG)
+# We already built spdlog via FetchContent, so targets should exist.
+
+if(NOT TARGET spdlog::spdlog)
+  if(TARGET spdlog)
+    add_library(spdlog::spdlog ALIAS spdlog)
+  endif()
+endif()
+
+if(NOT TARGET spdlog::spdlog)
+  message(FATAL_ERROR "spdlog target not found. FetchContent_MakeAvailable(spdlog) did not produce expected targets.")
+endif()
+
+# Some projects look for header-only target
+if(NOT TARGET spdlog::spdlog_header_only)
+  if(TARGET spdlog_header_only)
+    add_library(spdlog::spdlog_header_only ALIAS spdlog_header_only)
+  endif()
+endif()
+]=])
+
+# Force CommonLibSSE-NG to use our local config
+set(spdlog_DIR "${_LOCAL_PKG_DIR}" CACHE PATH "" FORCE)
 
 # ----------------------------
 # CommonLibSSE-NG: prefer submodule, fallback to FetchContent
