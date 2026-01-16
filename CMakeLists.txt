@@ -14,15 +14,52 @@ set(PLUGIN_NAME "mymodhub-procedural-loader")
 # Disable json tests globally
 set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
 
-# CommonLibSSE-NG (AE runtime)
-add_subdirectory(extern/CommonLibSSE-NG)
+include(FetchContent)
+
+# fmt + spdlog for CommonLibSSE-NG
+FetchContent_Declare(
+  fmt
+  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+  GIT_TAG 10.2.1
+)
+set(FMT_INSTALL ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(fmt)
+
+FetchContent_Declare(
+  spdlog
+  GIT_REPOSITORY https://github.com/gabime/spdlog.git
+  GIT_TAG v1.14.1
+)
+set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(SPDLOG_INSTALL ON CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_BENCH OFF CACHE BOOL "" FORCE)
+set(SPDLOG_FMT_EXTERNAL OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(spdlog)
+# Make spdlog discoverable for find_package(spdlog CONFIG)
+list(APPEND CMAKE_PREFIX_PATH "${spdlog_BINARY_DIR}")
+# Make fmt discoverable for spdlog's config-time dependency lookup
+list(APPEND CMAKE_PREFIX_PATH "${fmt_BINARY_DIR}")
+
+# CommonLibSSE-NG (AE runtime) - prefer submodule, fallback to FetchContent
+set(COMMONLIBSSE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibSSE-NG")
+if (EXISTS "${COMMONLIBSSE_SOURCE_DIR}/CMakeLists.txt")
+  add_subdirectory("${COMMONLIBSSE_SOURCE_DIR}")
+else()
+  FetchContent_Declare(
+    CommonLibSSE_NG
+    GIT_REPOSITORY https://github.com/CharmedBaryon/CommonLibSSE-NG.git
+    GIT_TAG main
+  )
+  FetchContent_MakeAvailable(CommonLibSSE_NG)
+endif()
 
 # nlohmann_json: local submodule preferred, FetchContent fallback
 set(NLOHMANN_JSON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann_json")
 if (EXISTS "${NLOHMANN_JSON_SOURCE_DIR}/CMakeLists.txt")
   add_subdirectory("${NLOHMANN_JSON_SOURCE_DIR}")
 else()
-  include(FetchContent)
   FetchContent_Declare(
     nlohmann_json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
