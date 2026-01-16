@@ -15,10 +15,13 @@ include(FetchContent)
 
 # nlohmann_json: disable tests
 set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
-# CommonLibSSE-NG: disable tests
+
+# CommonLibSSE-NG respects this
 set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
+# ----------------------------
 # 1. fmt
+# ----------------------------
 FetchContent_Declare(
   fmt
   GIT_REPOSITORY https://github.com/fmtlib/fmt.git
@@ -28,7 +31,9 @@ set(FMT_TEST OFF CACHE BOOL "" FORCE)
 set(FMT_DOC OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(fmt)
 
+# ----------------------------
 # 2. spdlog (Target-only)
+# ----------------------------
 FetchContent_Declare(
   spdlog
   GIT_REPOSITORY https://github.com/gabime/spdlog.git
@@ -41,9 +46,12 @@ set(SPDLOG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SPDLOG_BUILD_BENCH OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(spdlog)
 
+# ----------------------------
 # 3. Spdlog Config Workaround
+# ----------------------------
 set(_LOCAL_PKG_DIR "${CMAKE_BINARY_DIR}/_local_pkgs/spdlog")
 file(MAKE_DIRECTORY "${_LOCAL_PKG_DIR}")
+
 file(WRITE "${_LOCAL_PKG_DIR}/spdlogConfig.cmake" [=[
 if(NOT TARGET spdlog::spdlog)
   if(TARGET spdlog)
@@ -56,9 +64,12 @@ if(NOT TARGET spdlog::spdlog_header_only)
   endif()
 endif()
 ]=])
+
 set(spdlog_DIR "${_LOCAL_PKG_DIR}" CACHE PATH "" FORCE)
 
+# ----------------------------
 # 4. rapidcsv
+# ----------------------------
 FetchContent_Declare(
   rapidcsv
   GIT_REPOSITORY https://github.com/d99kris/rapidcsv.git
@@ -67,10 +78,17 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(rapidcsv)
 set(RAPIDCSV_INCLUDE_DIRS "${rapidcsv_SOURCE_DIR}/src" CACHE PATH "" FORCE)
 
+# ----------------------------
 # 5. CommonLibSSE-NG
-set(COMMONLIBSSE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibSSE-NG")
+# ----------------------------
+
+# Prevent install/export errors
 set(CMAKE_SKIP_INSTALL_RULES ON)
+
+set(COMMONLIBSSE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibSSE-NG")
+
 if (EXISTS "${COMMONLIBSSE_SOURCE_DIR}/CMakeLists.txt")
+  message(STATUS "Using CommonLibSSE-NG submodule at: ${COMMONLIBSSE_SOURCE_DIR}")
   add_subdirectory("${COMMONLIBSSE_SOURCE_DIR}")
 else()
   FetchContent_Declare(
@@ -79,9 +97,22 @@ else()
     GIT_TAG main
   )
   FetchContent_MakeAvailable(CommonLibSSE_NG)
+
+  # Make sure the helper include below points at the fetched source
+  set(COMMONLIBSSE_SOURCE_DIR "${CommonLibSSE_NG_SOURCE_DIR}")
+  message(STATUS "Using CommonLibSSE-NG via FetchContent at: ${COMMONLIBSSE_SOURCE_DIR}")
 endif()
 
+# This defines add_commonlibsse_plugin()
+if (EXISTS "${COMMONLIBSSE_SOURCE_DIR}/cmake/CommonLibSSE.cmake")
+  include("${COMMONLIBSSE_SOURCE_DIR}/cmake/CommonLibSSE.cmake")
+else()
+  message(FATAL_ERROR "CommonLibSSE.cmake not found at: ${COMMONLIBSSE_SOURCE_DIR}/cmake/CommonLibSSE.cmake")
+endif()
+
+# ----------------------------
 # 6. nlohmann_json
+# ----------------------------
 set(NLOHMANN_JSON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann_json")
 if (EXISTS "${NLOHMANN_JSON_SOURCE_DIR}/CMakeLists.txt")
   add_subdirectory("${NLOHMANN_JSON_SOURCE_DIR}")
@@ -126,8 +157,7 @@ add_commonlibsse_plugin(${PLUGIN_NAME}
   SOURCES ${MMH_SOURCES}
 )
 
-# === FIX: FORCE INCLUDE STANDARD HEADERS ===
-# This fixes the "uint16_t is not a member of std" errors in the generated file
+# Your PCH fix, kept as-is
 target_precompile_headers(${PLUGIN_NAME} PUBLIC
   <cstdint>
   <array>
@@ -140,6 +170,7 @@ target_precompile_headers(${PLUGIN_NAME} PUBLIC
 
 target_include_directories(${PLUGIN_NAME} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${RAPIDCSV_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PLUGIN_NAME} PRIVATE
