@@ -13,39 +13,63 @@ set(PLUGIN_NAME "mymodhub-procedural-loader")
 
 include(FetchContent)
 
-# nlohmann_json: disable tests globally (covers both add_subdirectory and FetchContent)
+# nlohmann_json: disable tests
 set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
+# CommonLibSSE-NG: disable tests
+set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
-include(FetchContent)
-
-# fmt + spdlog for CommonLibSSE-NG
+# 1. fmt
 FetchContent_Declare(
   fmt
   GIT_REPOSITORY https://github.com/fmtlib/fmt.git
   GIT_TAG 10.2.1
 )
-set(FMT_INSTALL ON CACHE BOOL "" FORCE)
+set(FMT_TEST OFF CACHE BOOL "" FORCE)
+set(FMT_DOC OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(fmt)
 
+# 2. spdlog (Target-only)
 FetchContent_Declare(
   spdlog
   GIT_REPOSITORY https://github.com/gabime/spdlog.git
   GIT_TAG v1.14.1
 )
+set(SPDLOG_FMT_EXTERNAL ON CACHE BOOL "" FORCE)
 set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-set(SPDLOG_INSTALL ON CACHE BOOL "" FORCE)
 set(SPDLOG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(SPDLOG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SPDLOG_BUILD_BENCH OFF CACHE BOOL "" FORCE)
-set(SPDLOG_FMT_EXTERNAL OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(spdlog)
-# Make spdlog discoverable for find_package(spdlog CONFIG)
-list(APPEND CMAKE_PREFIX_PATH "${spdlog_BINARY_DIR}")
-# Make fmt discoverable for spdlog's config-time dependency lookup
-list(APPEND CMAKE_PREFIX_PATH "${fmt_BINARY_DIR}")
 
-# CommonLibSSE-NG (AE runtime) - prefer submodule, fallback to FetchContent
+# 3. Spdlog Config Workaround
+set(_LOCAL_PKG_DIR "${CMAKE_BINARY_DIR}/_local_pkgs/spdlog")
+file(MAKE_DIRECTORY "${_LOCAL_PKG_DIR}")
+file(WRITE "${_LOCAL_PKG_DIR}/spdlogConfig.cmake" [=[
+if(NOT TARGET spdlog::spdlog)
+  if(TARGET spdlog)
+    add_library(spdlog::spdlog ALIAS spdlog)
+  endif()
+endif()
+if(NOT TARGET spdlog::spdlog_header_only)
+  if(TARGET spdlog_header_only)
+    add_library(spdlog::spdlog_header_only ALIAS spdlog_header_only)
+  endif()
+endif()
+]=])
+set(spdlog_DIR "${_LOCAL_PKG_DIR}" CACHE PATH "" FORCE)
+
+# 4. rapidcsv
+FetchContent_Declare(
+  rapidcsv
+  GIT_REPOSITORY https://github.com/d99kris/rapidcsv.git
+  GIT_TAG v8.84
+)
+FetchContent_MakeAvailable(rapidcsv)
+set(RAPIDCSV_INCLUDE_DIRS "${rapidcsv_SOURCE_DIR}/src" CACHE PATH "" FORCE)
+
+# 5. CommonLibSSE-NG
 set(COMMONLIBSSE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibSSE-NG")
+set(CMAKE_SKIP_INSTALL_RULES ON)
 if (EXISTS "${COMMONLIBSSE_SOURCE_DIR}/CMakeLists.txt")
   add_subdirectory("${COMMONLIBSSE_SOURCE_DIR}")
 else()
@@ -57,29 +81,7 @@ else()
   FetchContent_MakeAvailable(CommonLibSSE_NG)
 endif()
 
-FetchContent_MakeAvailable(spdlog)
-
-# Make spdlog discoverable for find_package(spdlog CONFIG)
-list(APPEND CMAKE_PREFIX_PATH "${spdlog_BINARY_DIR}")
-
-# ----------------------------
-# CommonLibSSE-NG: prefer submodule, fallback to FetchContent
-# ----------------------------
-set(COMMONLIBSSE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibSSE-NG")
-if (EXISTS "${COMMONLIBSSE_SOURCE_DIR}/CMakeLists.txt")
-  add_subdirectory("${COMMONLIBSSE_SOURCE_DIR}")
-else()
-  FetchContent_Declare(
-    CommonLibSSE_NG
-    GIT_REPOSITORY https://github.com/CharmedBaryon/CommonLibSSE-NG.git
-    GIT_TAG main
-  )
-  FetchContent_MakeAvailable(CommonLibSSE_NG)
-endif()
-
-# ----------------------------
-# nlohmann_json: prefer local submodule, FetchContent fallback
-# ----------------------------
+# 6. nlohmann_json
 set(NLOHMANN_JSON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann_json")
 if (EXISTS "${NLOHMANN_JSON_SOURCE_DIR}/CMakeLists.txt")
   add_subdirectory("${NLOHMANN_JSON_SOURCE_DIR}")
@@ -93,7 +95,7 @@ else()
 endif()
 
 # ----------------------------
-# Plugin target (AE)
+# Plugin Target
 # ----------------------------
 
 set(MMH_SOURCES
@@ -113,11 +115,27 @@ set(MMH_SOURCES
   src/mmh/Apply.cpp
   src/racemenu/RaceMenuBridge.h
   src/racemenu/RaceMenuBridge.cpp
+  src/mymodhub/packs/JsonUtil.h
+  src/mymodhub/packs/JsonUtil.cpp
+  src/mymodhub/packs/PackRegistry.h
+  src/mymodhub/packs/PackRegistry.cpp
+  src/mymodhub/packs/PackModels.h
 )
 
-# This macro wires SKSE + AE correctly (provided by CommonLibSSE-NG)
 add_commonlibsse_plugin(${PLUGIN_NAME}
   SOURCES ${MMH_SOURCES}
+)
+
+# === FIX: FORCE INCLUDE STANDARD HEADERS ===
+# This fixes the "uint16_t is not a member of std" errors in the generated file
+target_precompile_headers(${PLUGIN_NAME} PUBLIC
+  <cstdint>
+  <array>
+  <vector>
+  <string>
+  <string_view>
+  <algorithm>
+  <stdexcept>
 )
 
 target_include_directories(${PLUGIN_NAME} PRIVATE
