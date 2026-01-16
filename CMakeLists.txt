@@ -32,7 +32,7 @@ set(FMT_DOC OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(fmt)
 
 # ----------------------------
-# spdlog (target-only, no package install needed)
+# spdlog (target-only)
 # ----------------------------
 FetchContent_Declare(
   spdlog
@@ -53,7 +53,7 @@ FetchContent_MakeAvailable(spdlog)
 
 # ----------------------------
 # Provide a local spdlog "package config" for CommonLibSSE-NG
-# (avoids the broken spdlog build-tree export targets include issue)
+# (avoids broken build-tree export targets include issue)
 # ----------------------------
 set(_LOCAL_PKG_DIR "${CMAKE_BINARY_DIR}/_local_pkgs/spdlog")
 file(MAKE_DIRECTORY "${_LOCAL_PKG_DIR}")
@@ -84,9 +84,26 @@ endif()
 set(spdlog_DIR "${_LOCAL_PKG_DIR}" CACHE PATH "" FORCE)
 
 # ----------------------------
+# rapidcsv (CommonLibSSE-NG expects RAPIDCSV_INCLUDE_DIRS)
+# ----------------------------
+FetchContent_Declare(
+  rapidcsv
+  GIT_REPOSITORY https://github.com/d99kris/rapidcsv.git
+  GIT_TAG v8.84
+)
+FetchContent_MakeAvailable(rapidcsv)
+
+# rapidcsv is header-only; CommonLibSSE-NG looks for this var
+set(RAPIDCSV_INCLUDE_DIRS "${rapidcsv_SOURCE_DIR}/src" CACHE PATH "" FORCE)
+
+# ----------------------------
 # CommonLibSSE-NG: prefer submodule, fallback to FetchContent
 # ----------------------------
 set(COMMONLIBSSE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibSSE-NG")
+
+# We are building a plugin, not installing CommonLibSSE, so skip install/export rules
+set(CMAKE_SKIP_INSTALL_RULES ON)
+
 if (EXISTS "${COMMONLIBSSE_SOURCE_DIR}/CMakeLists.txt")
   add_subdirectory("${COMMONLIBSSE_SOURCE_DIR}")
 else()
@@ -98,7 +115,7 @@ else()
   FetchContent_MakeAvailable(CommonLibSSE_NG)
 endif()
 
-# This is what defines add_commonlibsse_plugin()
+# Defines add_commonlibsse_plugin()
 include("${COMMONLIBSSE_SOURCE_DIR}/cmake/CommonLibSSE.cmake")
 
 # ----------------------------
@@ -139,7 +156,6 @@ set(MMH_SOURCES
   src/racemenu/RaceMenuBridge.cpp
 )
 
-# This macro wires SKSE + AE correctly (provided by CommonLibSSE-NG)
 add_commonlibsse_plugin(${PLUGIN_NAME}
   SOURCES ${MMH_SOURCES}
 )
