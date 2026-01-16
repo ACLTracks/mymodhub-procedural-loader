@@ -11,12 +11,15 @@ set(PLUGIN_NAME "mymodhub-procedural-loader")
 # Dependencies
 # ----------------------------
 
-# Disable json tests globally
+include(FetchContent)
+
+# nlohmann_json: disable tests globally (covers both add_subdirectory and FetchContent)
 set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
 
 include(FetchContent)
 
 # fmt + spdlog for CommonLibSSE-NG
+# Provide spdlog (and fmt) via FetchContent so CommonLibSSE-NG's find_package(spdlog CONFIG) succeeds
 FetchContent_Declare(
   fmt
   GIT_REPOSITORY https://github.com/fmtlib/fmt.git
@@ -40,6 +43,13 @@ FetchContent_MakeAvailable(spdlog)
 list(APPEND CMAKE_PREFIX_PATH "${spdlog_BINARY_DIR}")
 
 # CommonLibSSE-NG (AE runtime) - prefer submodule, fallback to FetchContent
+set(SPDLOG_FMT_EXTERNAL ON CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_BENCH OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(spdlog)
+
+# CommonLibSSE-NG: prefer submodule, fallback to FetchContent (pin a commit/tag if you want hard reproducibility)
 set(COMMONLIBSSE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibSSE-NG")
 if (EXISTS "${COMMONLIBSSE_SOURCE_DIR}/CMakeLists.txt")
   add_subdirectory("${COMMONLIBSSE_SOURCE_DIR}")
@@ -52,7 +62,7 @@ else()
   FetchContent_MakeAvailable(CommonLibSSE_NG)
 endif()
 
-# nlohmann_json: local submodule preferred, FetchContent fallback
+# nlohmann_json: prefer local submodule, FetchContent fallback
 set(NLOHMANN_JSON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann_json")
 if (EXISTS "${NLOHMANN_JSON_SOURCE_DIR}/CMakeLists.txt")
   add_subdirectory("${NLOHMANN_JSON_SOURCE_DIR}")
@@ -76,14 +86,19 @@ set(MMH_SOURCES
   src/Log.cpp
   src/Log.h
   src/Version.h
+  src/mmh/PackPaths.h
   src/mmh/PackPaths.cpp
+  src/mmh/PackLoader.h
   src/mmh/PackLoader.cpp
+  src/mmh/Validate.h
   src/mmh/Validate.cpp
+  src/mmh/Apply.h
   src/mmh/Apply.cpp
+  src/racemenu/RaceMenuBridge.h
   src/racemenu/RaceMenuBridge.cpp
 )
 
-# This macro wires SKSE + AE correctly
+# This macro wires SKSE + AE correctly (provided by CommonLibSSE-NG)
 add_commonlibsse_plugin(${PLUGIN_NAME}
   SOURCES ${MMH_SOURCES}
 )
