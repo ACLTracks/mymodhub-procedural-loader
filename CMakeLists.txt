@@ -16,7 +16,7 @@ include(FetchContent)
 # nlohmann_json: disable tests globally (covers both add_subdirectory and FetchContent)
 set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
 
-# Provide spdlog (and fmt) via FetchContent so CommonLibSSE-NG's find_package(spdlog CONFIG) succeeds
+# Provide fmt + spdlog via FetchContent so CommonLibSSE-NG's find_package(spdlog CONFIG) succeeds
 FetchContent_Declare(
   fmt
   GIT_REPOSITORY https://github.com/fmtlib/fmt.git
@@ -29,11 +29,21 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/gabime/spdlog.git
   GIT_TAG v1.14.1
 )
+
+# Make spdlog use external fmt (the one we just fetched)
 set(SPDLOG_FMT_EXTERNAL ON CACHE BOOL "" FORCE)
+
+# Keep spdlog lean
+set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(SPDLOG_INSTALL ON CACHE BOOL "" FORCE)
 set(SPDLOG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(SPDLOG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SPDLOG_BUILD_BENCH OFF CACHE BOOL "" FORCE)
+
 FetchContent_MakeAvailable(spdlog)
+
+# Make spdlog discoverable for find_package(spdlog CONFIG)
+list(APPEND CMAKE_PREFIX_PATH "${spdlog_BINARY_DIR}")
 
 # CommonLibSSE-NG: prefer submodule, fallback to FetchContent (pin a commit/tag if you want hard reproducibility)
 set(COMMONLIBSSE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibSSE-NG")
