@@ -16,14 +16,28 @@ include(FetchContent)
 # nlohmann_json: disable tests globally (covers both add_subdirectory and FetchContent)
 set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
 
-# Provide fmt + spdlog via FetchContent so CommonLibSSE-NG's find_package(spdlog CONFIG) succeeds
+# Optional: turn off tests for deps that honor BUILD_TESTS
+set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+
+# ----------------------------
+# fmt (must be discoverable as a package for spdlogConfig -> find_dependency(fmt))
+# ----------------------------
 FetchContent_Declare(
   fmt
   GIT_REPOSITORY https://github.com/fmtlib/fmt.git
   GIT_TAG 10.2.1
 )
+set(FMT_TEST OFF CACHE BOOL "" FORCE)
+set(FMT_DOC OFF CACHE BOOL "" FORCE)
+set(FMT_INSTALL ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(fmt)
 
+# Make fmt discoverable for find_package(fmt CONFIG)
+list(APPEND CMAKE_PREFIX_PATH "${fmt_BINARY_DIR}")
+
+# ----------------------------
+# spdlog (CommonLibSSE-NG does find_package(spdlog CONFIG))
+# ----------------------------
 FetchContent_Declare(
   spdlog
   GIT_REPOSITORY https://github.com/gabime/spdlog.git
@@ -45,7 +59,9 @@ FetchContent_MakeAvailable(spdlog)
 # Make spdlog discoverable for find_package(spdlog CONFIG)
 list(APPEND CMAKE_PREFIX_PATH "${spdlog_BINARY_DIR}")
 
-# CommonLibSSE-NG: prefer submodule, fallback to FetchContent (pin a commit/tag if you want hard reproducibility)
+# ----------------------------
+# CommonLibSSE-NG: prefer submodule, fallback to FetchContent
+# ----------------------------
 set(COMMONLIBSSE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibSSE-NG")
 if (EXISTS "${COMMONLIBSSE_SOURCE_DIR}/CMakeLists.txt")
   add_subdirectory("${COMMONLIBSSE_SOURCE_DIR}")
@@ -58,7 +74,9 @@ else()
   FetchContent_MakeAvailable(CommonLibSSE_NG)
 endif()
 
+# ----------------------------
 # nlohmann_json: prefer local submodule, FetchContent fallback
+# ----------------------------
 set(NLOHMANN_JSON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann_json")
 if (EXISTS "${NLOHMANN_JSON_SOURCE_DIR}/CMakeLists.txt")
   add_subdirectory("${NLOHMANN_JSON_SOURCE_DIR}")
