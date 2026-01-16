@@ -11,7 +11,9 @@ set(PLUGIN_NAME "mymodhub-procedural-loader")
 # Dependencies
 # ----------------------------
 
-# Disable json tests globally
+include(FetchContent)
+
+# nlohmann_json: disable tests globally (covers both add_subdirectory and FetchContent)
 set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
 
 include(FetchContent)
@@ -55,7 +57,29 @@ else()
   FetchContent_MakeAvailable(CommonLibSSE_NG)
 endif()
 
-# nlohmann_json: local submodule preferred, FetchContent fallback
+FetchContent_MakeAvailable(spdlog)
+
+# Make spdlog discoverable for find_package(spdlog CONFIG)
+list(APPEND CMAKE_PREFIX_PATH "${spdlog_BINARY_DIR}")
+
+# ----------------------------
+# CommonLibSSE-NG: prefer submodule, fallback to FetchContent
+# ----------------------------
+set(COMMONLIBSSE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/CommonLibSSE-NG")
+if (EXISTS "${COMMONLIBSSE_SOURCE_DIR}/CMakeLists.txt")
+  add_subdirectory("${COMMONLIBSSE_SOURCE_DIR}")
+else()
+  FetchContent_Declare(
+    CommonLibSSE_NG
+    GIT_REPOSITORY https://github.com/CharmedBaryon/CommonLibSSE-NG.git
+    GIT_TAG main
+  )
+  FetchContent_MakeAvailable(CommonLibSSE_NG)
+endif()
+
+# ----------------------------
+# nlohmann_json: prefer local submodule, FetchContent fallback
+# ----------------------------
 set(NLOHMANN_JSON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann_json")
 if (EXISTS "${NLOHMANN_JSON_SOURCE_DIR}/CMakeLists.txt")
   add_subdirectory("${NLOHMANN_JSON_SOURCE_DIR}")
@@ -79,14 +103,19 @@ set(MMH_SOURCES
   src/Log.cpp
   src/Log.h
   src/Version.h
+  src/mmh/PackPaths.h
   src/mmh/PackPaths.cpp
+  src/mmh/PackLoader.h
   src/mmh/PackLoader.cpp
+  src/mmh/Validate.h
   src/mmh/Validate.cpp
+  src/mmh/Apply.h
   src/mmh/Apply.cpp
+  src/racemenu/RaceMenuBridge.h
   src/racemenu/RaceMenuBridge.cpp
 )
 
-# This macro wires SKSE + AE correctly
+# This macro wires SKSE + AE correctly (provided by CommonLibSSE-NG)
 add_commonlibsse_plugin(${PLUGIN_NAME}
   SOURCES ${MMH_SOURCES}
 )
