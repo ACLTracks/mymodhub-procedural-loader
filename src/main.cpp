@@ -1,12 +1,24 @@
 // src/main.cpp
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
 
+// CommonLibSSE-NG MUST be included before any Windows API headers
+#include <RE/Skyrim.h>
+#include <SKSE/SKSE.h>
+
+// Your headers
 #include "Plugin.h"
 #include "Log.h"
 
-#include <SKSE/SKSE.h>
+// If you truly need Windows.h, include it AFTER CommonLib
+// You only need this for DllMain + DisableThreadLibraryCalls.
+// If you want, we can remove Windows.h entirely and use the Win32 types via forward decls,
+// but this version keeps it simple and correct.
+#ifndef WIN32_LEAN_AND_MEAN
+  #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+  #define NOMINMAX
+#endif
+#include <Windows.h>
 
 using namespace std::literals;
 
