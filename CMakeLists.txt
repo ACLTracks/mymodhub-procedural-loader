@@ -98,6 +98,9 @@ else()
   FetchContent_MakeAvailable(CommonLibSSE_NG)
 endif()
 
+# This is what defines add_commonlibsse_plugin()
+include("${COMMONLIBSSE_SOURCE_DIR}/cmake/CommonLibSSE.cmake")
+
 # ----------------------------
 # nlohmann_json: prefer local submodule, FetchContent fallback
 # ----------------------------
