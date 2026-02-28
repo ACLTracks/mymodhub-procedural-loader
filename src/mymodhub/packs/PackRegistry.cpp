@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <set>
+#include <system_error>
 
 // If you already have a logger wrapper, use that.
 // Otherwise spdlog is typical in SKSE loaders.
@@ -10,6 +11,34 @@
 
 namespace mymodhub::packs
 {
+    namespace
+    {
+        bool IsPathWithin(const std::filesystem::path& root, const std::filesystem::path& candidate)
+        {
+            std::error_code ec;
+            const auto canonicalRoot = std::filesystem::weakly_canonical(root, ec);
+            if (ec) {
+                return false;
+            }
+
+            const auto canonicalCandidate = std::filesystem::weakly_canonical(candidate, ec);
+            if (ec) {
+                return false;
+            }
+
+            auto rootIt = canonicalRoot.begin();
+            auto candidateIt = canonicalCandidate.begin();
+
+            for (; rootIt != canonicalRoot.end(); ++rootIt, ++candidateIt) {
+                if (candidateIt == canonicalCandidate.end() || *rootIt != *candidateIt) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
     PackRegistry& PackRegistry::Get()
     {
         static PackRegistry instance;
@@ -23,7 +52,8 @@ namespace mymodhub::packs
         _packs.clear();
         _entryByKey.clear();
 
-        if (!std::filesystem::exists(packsRoot)) {
+        std::error_code ec;
+        if (!std::filesystem::exists(packsRoot, ec) || ec) {
             spdlog::info("[MyModHub] Packs root does not exist: {}", packsRoot.string());
             return;
         }
@@ -34,7 +64,12 @@ namespace mymodhub::packs
         size_t loadedEntries = 0;
         size_t skipped = 0;
 
-        for (const auto& dirEnt : std::filesystem::directory_iterator(packsRoot)) {
+        for (const auto& dirEnt : std::filesystem::directory_iterator(packsRoot, ec)) {
+            if (ec) {
+                spdlog::warn("[MyModHub] Failed to iterate packs root '{}': {}", packsRoot.string(), ec.message());
+                break;
+            }
+
             if (!dirEnt.is_directory()) {
                 continue;
             }
@@ -112,7 +147,8 @@ namespace mymodhub::packs
         const auto manifestPath = packDir / "manifest.json";
         const auto indexPath = packDir / "index.json";
 
-        if (!std::filesystem::exists(manifestPath) || !std::filesystem::exists(indexPath)) {
+        std::error_code ec;
+        if (!std::filesystem::exists(manifestPath, ec) || ec || !std::filesystem::exists(indexPath, ec) || ec) {
             spdlog::warn("[MyModHub] Pack missing manifest/index: {}", packDir.string());
             return false;
         }
@@ -171,8 +207,15 @@ namespace mymodhub::packs
                 outError = "entry '" + e.id + "' missing file path";
                 return false;
             }
+
             const auto entryPath = pack.root_dir / e.file;
-            if (!std::filesystem::exists(entryPath)) {
+            if (!IsPathWithin(pack.root_dir, entryPath)) {
+                outError = "entry file escapes pack root for '" + e.id + "': " + entryPath.string();
+                return false;
+            }
+
+            std::error_code ec;
+            if (!std::filesystem::exists(entryPath, ec) || ec) {
                 outError = "entry file missing for '" + e.id + "': " + entryPath.string();
                 return false;
             }
