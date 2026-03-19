@@ -5,6 +5,8 @@
 #include <set>
 #include <system_error>
 
+#include <filesystem>
+
 // If you already have a logger wrapper, use that.
 // Otherwise spdlog is typical in SKSE loaders.
 #include <spdlog/spdlog.h>
@@ -13,23 +15,17 @@ namespace mymodhub::packs
 {
     namespace
     {
-        bool IsPathWithin(const std::filesystem::path& root, const std::filesystem::path& candidate)
+        bool IsPathWithin(const std::filesystem::path& root, const std::filesystem::path& candidate, std::error_code& ec)
         {
-            std::error_code ec;
-            const auto canonicalRoot = std::filesystem::weakly_canonical(root, ec);
-            if (ec) {
-                return false;
-            }
-
             const auto canonicalCandidate = std::filesystem::weakly_canonical(candidate, ec);
             if (ec) {
                 return false;
             }
 
-            auto rootIt = canonicalRoot.begin();
+            auto rootIt = root.begin();
             auto candidateIt = canonicalCandidate.begin();
 
-            for (; rootIt != canonicalRoot.end(); ++rootIt, ++candidateIt) {
+            for (; rootIt != root.end(); ++rootIt, ++candidateIt) {
                 if (candidateIt == canonicalCandidate.end() || *rootIt != *candidateIt) {
                     return false;
                 }
@@ -52,32 +48,73 @@ namespace mymodhub::packs
         _packs.clear();
         _entryByKey.clear();
 
+        // Trust model: packs must be physical directories under packsRoot; symlinks are rejected.
         std::error_code ec;
-        if (!std::filesystem::exists(packsRoot, ec) || ec) {
-            spdlog::info("[MyModHub] Packs root does not exist: {}", packsRoot.string());
+        const auto canonicalPacksRoot = std::filesystem::weakly_canonical(packsRoot, ec);
+        if (ec) {
+            const auto rootEc = ec;
+            const bool packsRootExists = std::filesystem::exists(packsRoot, ec);
+            if (ec) {
+                spdlog::warn("[MyModHub] Failed to access packs root '{}': {}", packsRoot.string(), ec.message());
+            } else if (!packsRootExists) {
+                spdlog::info("[MyModHub] Packs root does not exist: {}", packsRoot.string());
+            } else {
+                spdlog::warn("[MyModHub] Failed to canonicalize packs root '{}': {}", packsRoot.string(), rootEc.message());
+            }
             return;
         }
 
-        spdlog::info("[MyModHub] Scanning packs root: {}", packsRoot.string());
+        spdlog::info("[MyModHub] Scanning packs root: {}", canonicalPacksRoot.string());
 
         size_t loadedPacks = 0;
         size_t loadedEntries = 0;
         size_t skipped = 0;
 
-        for (const auto& dirEnt : std::filesystem::directory_iterator(packsRoot, ec)) {
-            if (ec) {
-                spdlog::warn("[MyModHub] Failed to iterate packs root '{}': {}", packsRoot.string(), ec.message());
-                break;
+        std::filesystem::directory_iterator iter(canonicalPacksRoot, ec);
+        if (ec) {
+            spdlog::warn("[MyModHub] Failed to open packs root '{}' for iteration: {}", canonicalPacksRoot.string(), ec.message());
+            return;
+        }
+
+        for (const auto& dirEnt : iter) {
+            std::error_code entryEc;
+            const auto status = dirEnt.symlink_status(entryEc);
+            if (entryEc) {
+                spdlog::warn("[MyModHub] Failed to inspect pack candidate '{}': {}", dirEnt.path().string(), entryEc.message());
+                skipped++;
+                continue;
             }
 
-            if (!dirEnt.is_directory()) {
+            if (std::filesystem::is_symlink(status)) {
+                spdlog::warn("[MyModHub] Rejecting symlinked pack directory: {}", dirEnt.path().string());
+                skipped++;
+                continue;
+            }
+
+            if (!std::filesystem::is_directory(status)) {
                 continue;
             }
 
             const auto packDir = dirEnt.path();
+            const auto canonicalPackDir = std::filesystem::weakly_canonical(packDir, entryEc);
+            if (entryEc) {
+                spdlog::warn("[MyModHub] Failed to canonicalize pack directory '{}': {}", packDir.string(), entryEc.message());
+                skipped++;
+                continue;
+            }
+
+            if (!IsPathWithin(canonicalPacksRoot, canonicalPackDir, entryEc)) {
+                if (entryEc) {
+                    spdlog::warn("[MyModHub] Failed to validate pack directory '{}': {}", packDir.string(), entryEc.message());
+                } else {
+                    spdlog::warn("[MyModHub] Rejecting pack directory outside packs root: {}", packDir.string());
+                }
+                skipped++;
+                continue;
+            }
             LoadedPack pack;
 
-            if (!TryLoadPack(packDir, pack)) {
+            if (!TryLoadPack(canonicalPackDir, pack)) {
                 skipped++;
                 continue;
             }
@@ -148,8 +185,23 @@ namespace mymodhub::packs
         const auto indexPath = packDir / "index.json";
 
         std::error_code ec;
-        if (!std::filesystem::exists(manifestPath, ec) || ec || !std::filesystem::exists(indexPath, ec) || ec) {
-            spdlog::warn("[MyModHub] Pack missing manifest/index: {}", packDir.string());
+        const bool manifestExists = std::filesystem::exists(manifestPath, ec);
+        if (ec) {
+            spdlog::warn("[MyModHub] Failed to access manifest '{}': {}", manifestPath.string(), ec.message());
+            return false;
+        }
+        if (!manifestExists) {
+            spdlog::warn("[MyModHub] Pack missing manifest: {}", manifestPath.string());
+            return false;
+        }
+
+        const bool indexExists = std::filesystem::exists(indexPath, ec);
+        if (ec) {
+            spdlog::warn("[MyModHub] Failed to access index '{}': {}", indexPath.string(), ec.message());
+            return false;
+        }
+        if (!indexExists) {
+            spdlog::warn("[MyModHub] Pack missing index: {}", indexPath.string());
             return false;
         }
 
@@ -209,13 +261,22 @@ namespace mymodhub::packs
             }
 
             const auto entryPath = pack.root_dir / e.file;
-            if (!IsPathWithin(pack.root_dir, entryPath)) {
-                outError = "entry file escapes pack root for '" + e.id + "': " + entryPath.string();
+            std::error_code ec;
+            if (!IsPathWithin(pack.root_dir, entryPath, ec)) {
+                if (ec) {
+                    outError = "failed to canonicalize entry file for '" + e.id + "': " + entryPath.string() + " (" + ec.message() + ")";
+                } else {
+                    outError = "entry file escapes pack root for '" + e.id + "': " + entryPath.string();
+                }
                 return false;
             }
 
-            std::error_code ec;
-            if (!std::filesystem::exists(entryPath, ec) || ec) {
+            const bool entryExists = std::filesystem::exists(entryPath, ec);
+            if (ec) {
+                outError = "failed to access entry file for '" + e.id + "': " + entryPath.string() + " (" + ec.message() + ")";
+                return false;
+            }
+            if (!entryExists) {
                 outError = "entry file missing for '" + e.id + "': " + entryPath.string();
                 return false;
             }
